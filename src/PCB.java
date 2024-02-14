@@ -10,7 +10,6 @@ public class PCB
     private long timeToWake;
     // This will count how many times a process has timed out, this will be used for demotions.
     private int timeoutCounter;
-    private boolean sleeping;
 
     // Creates thread, sets pid.
     public PCB(UserlandProcess up)
@@ -19,7 +18,6 @@ public class PCB
         pid = nextpid++;
         // Sets priority to real-time by default.
         priority = 0;
-        sleeping = false;
     }
 
     // Second constructor to let priority be set by user.
@@ -31,7 +29,6 @@ public class PCB
             this.priority = priority;
         else
             throw new IllegalArgumentException("Error: Priority specified is out of range, valid priorities are 0-2.");
-        sleeping = false;
     }
 
     // Calls UserlandProcess' stop. Loops with Thread.sleep() until ulp.isStopped is true.
@@ -81,15 +78,5 @@ public class PCB
     public long getTimeToWake()
     {
         return timeToWake;
-    }
-
-    public void setSleeping(boolean sleeping)
-    {
-        this.sleeping = sleeping;
-    }
-
-    public boolean isSleeping()
-    {
-        return sleeping;
     }
 }
