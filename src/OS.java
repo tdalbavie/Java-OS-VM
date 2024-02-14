@@ -61,7 +61,31 @@ public class OS
     {
         // Checks for a currently running process and stops it.
         if (kernel.getScheduler().currentProcess != null)
+        {
             kernel.getScheduler().currentProcess.stop();
+
+            // Increments the counter.
+            kernel.getScheduler().currentProcess.incrementTimeoutCounter();
+
+            // If current process reached maximum timeouts of 5, it gets demoted.
+            if (kernel.getScheduler().currentProcess.getTimeoutCounter() == 5)
+            {
+                int priority = kernel.getScheduler().currentProcess.getPriority();
+                // Demotes process next time it gets put back into list as long as it is not already a background process.
+                if (priority < 2) {
+                    // Print statements to show which process level is getting demoted
+                    if (priority == 0)
+                        System.out.println("Demoting realtime to interactive");
+                    else if (priority == 1)
+                        System.out.println("Demoting interactive to background");
+
+                    kernel.getScheduler().currentProcess.setPriority(priority + 1);
+                }
+
+                // Sets counter back to 0
+                kernel.getScheduler().currentProcess.setTimeoutCounter(0);
+            }
+        }
 
         // In case no process is running (mainly for init).
         while (kernel.getScheduler().currentProcess == null)

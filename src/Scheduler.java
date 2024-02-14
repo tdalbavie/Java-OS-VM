@@ -218,6 +218,11 @@ public class Scheduler
 
     public void Sleep(long milliseconds)
     {
+        // Decrements timeout counter when using sleep to prevent demotion.
+        if (currentProcess.getTimeoutCounter() > 0)
+        {
+            currentProcess.decrementTimeoutCounter();
+        }
         // Gets the time to tell the scheduler how long current process should sleep for.
         long sleepTime = clock.instant().toEpochMilli() + milliseconds;
         currentProcess.setTimeToWake(sleepTime);

@@ -18,6 +18,7 @@ public class PCB
         pid = nextpid++;
         // Sets priority to real-time by default.
         priority = 0;
+        timeoutCounter = 0;
     }
 
     // Second constructor to let priority be set by user.
@@ -29,6 +30,7 @@ public class PCB
             this.priority = priority;
         else
             throw new IllegalArgumentException("Error: Priority specified is out of range, valid priorities are 0-2.");
+        timeoutCounter = 0;
     }
 
     // Calls UserlandProcess' stop. Loops with Thread.sleep() until ulp.isStopped is true.
@@ -78,5 +80,25 @@ public class PCB
     public long getTimeToWake()
     {
         return timeToWake;
+    }
+
+    public int getTimeoutCounter()
+    {
+        return timeoutCounter;
+    }
+
+    public void incrementTimeoutCounter()
+    {
+        timeoutCounter++;
+    }
+
+    public void decrementTimeoutCounter()
+    {
+        timeoutCounter--;
+    }
+
+    public void setTimeoutCounter(int timeoutCounter)
+    {
+        this.timeoutCounter = timeoutCounter;
     }
 }
