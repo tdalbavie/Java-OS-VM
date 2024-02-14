@@ -4,17 +4,26 @@ import java.util.concurrent.atomic.AtomicInteger;
 public abstract class UserlandProcess implements Runnable
 {
     // Thread to run the program.
-    private Thread thread;
+    private final Thread thread;
     // Semaphore for cooperation.
-    private Semaphore semaphore;
+    private final Semaphore semaphore;
     // Timer to stop process temporarily and pass it to something else.
     private Boolean quantumExpired;
-    private final int pid;
 
+    // Initializes thread, semaphore, and quantum.
     public UserlandProcess()
     {
         this.thread = new Thread(this);
-        this.semaphore = new Semaphore(0);
+        this.semaphore = new Semaphore(1);
+        // Fixes issue of processes not switching.
+        try
+        {
+            semaphore.acquire();
+        }
+        catch (InterruptedException e)
+        {
+            Thread.currentThread().interrupt();
+        }
         this.quantumExpired = false;
     }
 
@@ -43,6 +52,7 @@ public abstract class UserlandProcess implements Runnable
     public void start()
     {
         semaphore.release();
+        //System.out.println("Start: " + semaphore.availablePermits());
         if (!thread.isAlive())
         {
             thread.start();
@@ -52,9 +62,11 @@ public abstract class UserlandProcess implements Runnable
     // Acquires (decrements) the semaphore, stopping this thread from running.
     public void stop()
     {
+
         try
         {
             semaphore.acquire();
+            //System.out.println("Stop: " + semaphore.availablePermits());
         }
         catch (InterruptedException e)
         {
