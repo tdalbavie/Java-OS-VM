@@ -2,12 +2,13 @@ import java.time.Clock;
 import java.util.Iterator;
 import java.util.concurrent.Semaphore;
 
-public class Kernel implements Runnable
+public class Kernel implements Runnable, Device
 {
     private final Thread thread;
     private final Semaphore semaphore;
     private final Scheduler scheduler;
     private final Clock clock;
+    private VFS vfs;
 
     // Kernel constructor.
     public Kernel()
@@ -17,6 +18,7 @@ public class Kernel implements Runnable
         this.scheduler = new Scheduler();
         this.clock = Clock.systemUTC();
         this.thread.start();
+        this.vfs = new VFS();
     }
 
     @Override
@@ -119,5 +121,124 @@ public class Kernel implements Runnable
     public void Sleep(long milliseconds)
     {
         scheduler.Sleep(milliseconds);
+    }
+
+    @Override
+    public int open(String input)
+    {
+        // Ensure input includes a unique identifier for each device
+        PCB currentProcess = scheduler.getCurrentProcess();
+
+        // Makes sure there is a current process.
+        if (currentProcess == null)
+        {
+            return -1;
+        }
+
+        int deviceId = vfs.open(input); // Open device in VFS
+
+        if (deviceId != -1)
+        {
+            // Stores the device ID in the PCB.
+            for (int i = 0; i < currentProcess.getDeviceIds().length; i++)
+            {
+                if (currentProcess.getDeviceIds()[i] == -1)
+                {
+                    currentProcess.getDeviceIds()[i] = deviceId;
+                    break;
+                }
+            }
+        }
+
+        return deviceId;
+    }
+
+    @Override
+    public void close(int index)
+    {
+        PCB currentProcess = scheduler.getCurrentProcess();
+
+        // Makes sure process exists and index is not out of bounds.
+        if (currentProcess == null || index < 0 || index >= currentProcess.getDeviceIds().length)
+        {
+            return;
+        }
+
+        // Gets the device at the specified index.
+        int deviceId = currentProcess.getDeviceIds()[index];
+
+        if (deviceId != -1)
+        {
+            vfs.close(deviceId); // Assuming vfs.close() method exists
+            currentProcess.getDeviceIds()[index] = -1; // Mark as closed
+        }
+    }
+
+    @Override
+    public byte[] read(int index, int count)
+    {
+        PCB currentProcess = scheduler.getCurrentProcess();
+
+        // Makes sure process exists and index is not out of bounds.
+        if (currentProcess == null || index < 0 || index >= currentProcess.getDeviceIds().length)
+        {
+            return new byte[0];
+        }
+
+        // Gets the device at the specified index.
+        int deviceId = currentProcess.getDeviceIds()[index];
+
+        if (deviceId != -1)
+        {
+            return vfs.read(deviceId, count);
+        }
+
+        // Returns 0 if deviceId is not valid.
+        return new byte[0];
+    }
+
+    @Override
+    public int write(int index, byte[] data)
+    {
+        PCB currentProcess = scheduler.getCurrentProcess();
+
+        // Makes sure process exists and index is not out of bounds.
+        if (currentProcess == null || index < 0 || index >= currentProcess.getDeviceIds().length)
+        {
+            return 0;
+        }
+
+        // Gets the device at the specified index.
+        int deviceId = currentProcess.getDeviceIds()[index];
+
+        // Writes to device.
+        if (deviceId != -1)
+        {
+            return vfs.write(deviceId, data);
+        }
+
+        // Returns 0 if deviceId is not valid.
+        return 0;
+    }
+
+    @Override
+    public void seek(int index, int count)
+    {
+        PCB currentProcess = scheduler.getCurrentProcess();
+
+        // Makes sure process exists and index is not out of bounds.
+        if (currentProcess == null || index < 0 || index >= currentProcess.getDeviceIds().length)
+        {
+            return;
+        }
+
+        // Gets the device at the specified index.
+        int deviceId = currentProcess.getDeviceIds()[index];
+
+        // Seeks for the device.
+        if (deviceId != -1)
+        {
+            vfs.seek(deviceId, count);
+        }
     }
 }

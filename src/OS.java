@@ -18,13 +18,7 @@ public class OS
 
         // Initialize the first process and IdleProcess.
         createProcess(init);
-        // createProcess(new PCB(new IdleProcess()));
-
-        // Signal to kernel to switch.
-        //kernel.start();
-
-        // Stops current process and waits for first initialization.
-        //stopAndWait();
+        createProcess(new PCB(new IdleProcess(), 0));
     }
 
     // Initializes a new UserlandProcess for the scheduler to be aware of.
@@ -121,5 +115,30 @@ public class OS
     public static void Sleep(long milliseconds)
     {
         kernel.Sleep(milliseconds);
+    }
+
+    public static int open(String input)
+    {
+        return kernel.open(input);
+    }
+
+    public static void close(int index)
+    {
+        kernel.close(index);
+    }
+
+    public static byte[] read(int index, int count)
+    {
+        return kernel.read(index, count);
+    }
+
+    public static int write(int index, byte[] data)
+    {
+        return kernel.write(index, data);
+    }
+
+    public static void seek(int index, int count)
+    {
+        kernel.seek(index, count);
     }
 }

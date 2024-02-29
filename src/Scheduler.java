@@ -253,4 +253,9 @@ public class Scheduler
     {
         return sleepingProcesses;
     }
+
+    public PCB getCurrentProcess()
+    {
+        return currentProcess;
+    }
 }

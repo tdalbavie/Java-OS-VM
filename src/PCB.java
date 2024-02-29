@@ -1,3 +1,5 @@
+import java.util.Arrays;
+
 public class PCB
 {
     private final UserlandProcess up;
@@ -10,6 +12,7 @@ public class PCB
     private long timeToWake;
     // This will count how many times a process has timed out, this will be used for demotions.
     private int timeoutCounter;
+    private int[] deviceIds = new int[10];
 
     // Creates thread, sets pid.
     public PCB(UserlandProcess up)
@@ -19,6 +22,7 @@ public class PCB
         // Sets priority to real-time by default.
         priority = 0;
         timeoutCounter = 0;
+        Arrays.fill(deviceIds, -1);
     }
 
     // Second constructor to let priority be set by user.
@@ -100,5 +104,10 @@ public class PCB
     public void setTimeoutCounter(int timeoutCounter)
     {
         this.timeoutCounter = timeoutCounter;
+    }
+
+    public int[] getDeviceIds()
+    {
+        return deviceIds;
     }
 }
