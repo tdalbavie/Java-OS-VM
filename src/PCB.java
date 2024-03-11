@@ -133,7 +133,7 @@ public class PCB
         return this.messageQueue.poll();
     }
 
-    // Peeks at the next message without removing it.
+    // Peeks at the next message without removing it (Used for testing).
     public KernelMessage peekMessage()
     {
         return this.messageQueue.peek();

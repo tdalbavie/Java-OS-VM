@@ -151,11 +151,13 @@ public class OS
         kernel.seek(index, count);
     }
 
+    // Gets the currently running process' Pid.
     public static int GetPid()
     {
         return kernel.GetPid();
     }
 
+    // Searches for an existing process using its name.
     public static int GetPidByName(String name)
     {
         return kernel.GetPidByName(name);

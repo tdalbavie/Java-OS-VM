@@ -8,7 +8,6 @@ public class KernelMessage
     private final int messageType;
     private final byte[] data;
 
-    // Constructor
     public KernelMessage(int senderPid, int targetPid, int messageType, byte[] data)
     {
         this.senderPid = senderPid;
@@ -17,7 +16,7 @@ public class KernelMessage
         this.data = data.clone();
     }
 
-    // Copy constructor
+    // Copy constructor for deep copy use.
     public KernelMessage(KernelMessage message)
     {
         this.senderPid = message.senderPid;
@@ -26,7 +25,7 @@ public class KernelMessage
         this.data = message.data.clone();
     }
 
-    // ToString for debugging
+    // ToString for debugging.
     @Override
     public String toString()
     {
@@ -52,6 +51,7 @@ public class KernelMessage
 
     public byte[] getData()
     {
-        return data.clone(); // Returns a copy to ensure encapsulation
+        // Returns a copy of the data to ensure encapsulation.
+        return data.clone();
     }
 }

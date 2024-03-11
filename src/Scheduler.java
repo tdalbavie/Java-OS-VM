@@ -288,7 +288,16 @@ public class Scheduler
                 return pcb.getPid();
             }
         }
+        // Checks all processes in the sleep queue.
         for (PCB pcb : sleepingProcesses)
+        {
+            if (pcb.getName().equals(name))
+            {
+                return pcb.getPid();
+            }
+        }
+        // Checks all processes in the waiting queue.
+        for (PCB pcb : waitingForMessage)
         {
             if (pcb.getName().equals(name))
             {

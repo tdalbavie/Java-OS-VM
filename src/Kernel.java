@@ -135,7 +135,7 @@ public class Kernel implements Runnable, Device
     @Override
     public int open(String input)
     {
-        // Ensure input includes a unique identifier for each device
+        // Ensures input includes a unique identifier for each device.
         PCB currentProcess = scheduler.getCurrentProcess();
 
         // Makes sure there is a current process.
@@ -144,7 +144,7 @@ public class Kernel implements Runnable, Device
             return -1;
         }
 
-        int deviceId = vfs.open(input); // Open device in VFS
+        int deviceId = vfs.open(input);
 
         if (deviceId != -1)
         {
@@ -178,8 +178,8 @@ public class Kernel implements Runnable, Device
 
         if (deviceId != -1)
         {
-            vfs.close(deviceId); // Assuming vfs.close() method exists
-            currentProcess.getDeviceIds()[index] = -1; // Mark as closed
+            vfs.close(deviceId);
+            currentProcess.getDeviceIds()[index] = -1;
         }
     }
 
@@ -319,11 +319,13 @@ public class Kernel implements Runnable, Device
             }
         }
 
+        // Gets and removes the message that is being sent to the process (If there is one).
         KernelMessage message = currentPCB.dequeueMessage();
         if (message != null)
         {
             return message;
         }
+        // If no message is already waiting for it, it will wait for a message.
         else
         {
             // Adds process to the waiting queue and stops it.
