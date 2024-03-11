@@ -11,16 +11,15 @@ public class Scheduler
     private final LinkedList<PCB> interactiveProcesses;
     private final LinkedList<PCB> backgroundProcesses;
     private final LinkedList<PCB> sleepingProcesses;
+    private final LinkedList<PCB> waitingForMessage;
     private final Timer timer;
     // Used to get the current time for sleep method.
     private final Clock clock;
     private static Random rand;
-    // Holds next process ID for the next process that is created.
-    private static int PID;
     private boolean goingToSleep;
+    private boolean goingToWait;
     // Holds the currently running process.
     public PCB currentProcess;
-
     final Object lock = new Object();
 
     // Runs a timer for each process switch interrupt.
@@ -31,7 +30,9 @@ public class Scheduler
         interactiveProcesses = new LinkedList<>();
         backgroundProcesses = new LinkedList<>();
         sleepingProcesses = new LinkedList<>();
+        waitingForMessage = new LinkedList<>();
         goingToSleep = false;
+        goingToWait = false;
         // Initializes the randomizer.
         rand = new Random();
         // Initializes the clock.
@@ -78,23 +79,12 @@ public class Scheduler
             switchProcess();
         }
 
-        // Temporary implementation until more proper implementation in future assignment.
-        return PID++;
+        return up.getPid();
     }
 
     // Switches to the next process to run cooperatively.
     public void switchProcess()
     {
-        // Sleep function ensures stopping and starting threads stay synchronized.
-        try
-        {
-            Thread.sleep(5);
-        }
-        catch (InterruptedException e)
-        {
-            Thread.currentThread().interrupt();
-        }
-
         // In case of one of the lists being empty it will try again.
         while(true)
         {
@@ -103,13 +93,10 @@ public class Scheduler
             // This gets a process from realtime, has 6/10 chance of getting called.
             if (prioritySelector <= 6)
             {
-                //System.out.println("realtime");
-                //System.out.println(goingToSleep);
                 if (!realTimeProcesses.isEmpty())
                 {
-                    //System.out.println("realtime not empty");
                     // Moves the process to the end of the list if it is not done.
-                    if (currentProcess != null && !currentProcess.isDone() && !goingToSleep)
+                    if (currentProcess != null && !currentProcess.isDone() && !goingToSleep && !goingToWait)
                     {
                         // Puts current process to the back of the list it came from.
                         if (currentProcess.getPriority() == 0)
@@ -133,6 +120,9 @@ public class Scheduler
                     if (goingToSleep)
                         goingToSleep = false;
 
+                    if (goingToWait)
+                        goingToWait = false;
+
                     // Exits the loop.
                     break;
                 }
@@ -146,7 +136,7 @@ public class Scheduler
                 {
                     //System.out.println("inter not empty");
                     // Moves the process to the end of the list if it is not done.
-                    if (currentProcess != null && !currentProcess.isDone() && !goingToSleep)
+                    if (currentProcess != null && !currentProcess.isDone() && !goingToSleep && !goingToWait)
                     {
                         // Puts current process to the back of the list it came from.
                         if (currentProcess.getPriority() == 0)
@@ -169,6 +159,9 @@ public class Scheduler
                     if (goingToSleep)
                         goingToSleep = false;
 
+                    if (goingToWait)
+                        goingToWait = false;
+
                     // Exits the loop.
                     break;
                 }
@@ -182,7 +175,7 @@ public class Scheduler
                 {
                     //System.out.println("back not empty");
                     // Moves the process to the end of the list if it is not done.
-                    if (currentProcess != null && !currentProcess.isDone() && !goingToSleep)
+                    if (currentProcess != null && !currentProcess.isDone() && !goingToSleep && !goingToWait)
                     {
                         // Puts current process to the back of the list it came from.
                         if (currentProcess.getPriority() == 0)
@@ -204,6 +197,9 @@ public class Scheduler
 
                     if (goingToSleep)
                         goingToSleep = false;
+
+                    if (goingToWait)
+                        goingToWait = false;
 
                     // Exits the loop.
                     break;
@@ -257,5 +253,106 @@ public class Scheduler
     public PCB getCurrentProcess()
     {
         return currentProcess;
+    }
+
+    // Gets the Pid of the currently running program.
+    public int getPid()
+    {
+        return currentProcess.getPid();
+    }
+
+    // Searches existing processes by name and return a pid.
+    public int getPidByName(String name)
+    {
+        // Checks all processes in the real time queue.
+        for (PCB pcb : realTimeProcesses)
+        {
+            if (pcb.getName().equals(name))
+            {
+                return pcb.getPid();
+            }
+        }
+        // Checks all processes in the interactive queue.
+        for (PCB pcb : interactiveProcesses)
+        {
+            if (pcb.getName().equals(name))
+            {
+                return pcb.getPid();
+            }
+        }
+        // Checks all processes in the background queue.
+        for (PCB pcb : backgroundProcesses)
+        {
+            if (pcb.getName().equals(name))
+            {
+                return pcb.getPid();
+            }
+        }
+        for (PCB pcb : sleepingProcesses)
+        {
+            if (pcb.getName().equals(name))
+            {
+                return pcb.getPid();
+            }
+        }
+
+        // Returns -1 if no process with the given name is found.
+        return -1;
+    }
+
+    // Removes the process from wait queue and back into the main rotation.
+    public void removeFromWaiting(int pid) 
+    {
+        int i = 0;
+        while (i < waitingForMessage.size())
+        {
+            PCB process = waitingForMessage.get(i);
+
+            // Checks if message target is present in queue and puts it back in rotation.
+            if (process.getPid() == pid)
+            {
+                // Checks what priority the process was and adds it back in.
+                if (process.getPriority() == 0)
+                {
+                    waitingForMessage.remove(process);
+                    getRealTimeProcesses().addLast(process);
+                }
+                else if (process.getPriority() == 1)
+                {
+                    waitingForMessage.remove(process);
+                    getInteractiveProcesses().addLast(process);
+                }
+                else if (process.getPriority() == 2)
+                {
+                    waitingForMessage.remove(process);
+                    getBackgroundProcesses().addLast(process);
+                }
+                break;
+            }
+            // Increments counter to check next process.
+            else
+            {
+                i++;
+            }
+        }
+    }
+
+    // Adds a process to the waiting queue.
+    public void addToWaiting()
+    {
+        // Decrements timeout counter when using wait to prevent demotion (Since this is similar to sleep).
+        if (currentProcess.getTimeoutCounter() > 0)
+        {
+            currentProcess.decrementTimeoutCounter();
+        }
+
+        // Moves the current process into a sleeping list.
+        sleepingProcesses.add(currentProcess);
+        // Sets flag to true so the next switch does not move current process to the back of the queue.
+        goingToWait = true;
+
+        // Stops the process and switches it.
+        currentProcess.getProcess().requestStop();
+        currentProcess.getProcess().cooperate();
     }
 }

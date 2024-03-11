@@ -1,4 +1,5 @@
 import java.util.Arrays;
+import java.util.LinkedList;
 
 public class PCB
 {
@@ -13,6 +14,9 @@ public class PCB
     // This will count how many times a process has timed out, this will be used for demotions.
     private int timeoutCounter;
     private int[] deviceIds = new int[10];
+    private String processName;
+    // This will hold any messages a process is trying to send to it.
+    private LinkedList<KernelMessage> messageQueue;
 
     // Creates thread, sets pid.
     public PCB(UserlandProcess up)
@@ -23,18 +27,19 @@ public class PCB
         priority = 0;
         timeoutCounter = 0;
         Arrays.fill(deviceIds, -1);
+        // Gets process name.
+        processName = up.getClass().getSimpleName();
+        messageQueue = new LinkedList<>();
     }
 
     // Second constructor to let priority be set by user.
     public PCB(UserlandProcess up, int priority)
     {
-        this.up = up;
-        pid = nextpid++;
+        this(up);
         if(priority >= 0 && priority <= 2)
             this.priority = priority;
         else
             throw new IllegalArgumentException("Error: Priority specified is out of range, valid priorities are 0-2.");
-        timeoutCounter = 0;
     }
 
     // Calls UserlandProcess' stop. Loops with Thread.sleep() until ulp.isStopped is true.
@@ -109,5 +114,28 @@ public class PCB
     public int[] getDeviceIds()
     {
         return deviceIds;
+    }
+
+    public String getName()
+    {
+        return processName;
+    }
+
+    // Adds a message to the end of the queue.
+    public void enqueueMessage(KernelMessage message)
+    {
+        this.messageQueue.addLast(message);
+    }
+
+    // Gets and removes the next message from the queue.
+    public KernelMessage dequeueMessage()
+    {
+        return this.messageQueue.poll();
+    }
+
+    // Peeks at the next message without removing it.
+    public KernelMessage peekMessage()
+    {
+        return this.messageQueue.peek();
     }
 }

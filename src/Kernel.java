@@ -1,4 +1,5 @@
 import java.time.Clock;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.concurrent.Semaphore;
 
@@ -9,6 +10,9 @@ public class Kernel implements Runnable, Device
     private final Scheduler scheduler;
     private final Clock clock;
     private VFS vfs;
+    private final HashMap<Integer, PCB> processMap;
+    // This queue will hold on to messages if the receiving process has not yet been created.
+    private final HashMap<Integer, KernelMessage> messageQueue;
 
     // Kernel constructor.
     public Kernel()
@@ -19,6 +23,8 @@ public class Kernel implements Runnable, Device
         this.clock = Clock.systemUTC();
         this.thread.start();
         this.vfs = new VFS();
+        this.processMap = new HashMap<>();
+        this.messageQueue = new HashMap<>();
     }
 
     @Override
@@ -97,8 +103,11 @@ public class Kernel implements Runnable, Device
     // Passes the next process to scheduler to add it to rotation.
     private void createProcess()
     {
-        int PID = scheduler.createProcess((PCB) OS.getFunctionParameters().getFirst());
+        PCB newProcess = (PCB) OS.getFunctionParameters().getFirst();
+        int PID = scheduler.createProcess(newProcess);
         OS.setReturnValue(PID);
+        // Adds the new process to the map of processes.
+        addProcessToMap(newProcess);
     }
 
     // Tells scheduler to switch to the next process in line.
@@ -241,4 +250,93 @@ public class Kernel implements Runnable, Device
             vfs.seek(deviceId, count);
         }
     }
+
+    public int GetPid()
+    {
+        return scheduler.getPid();
+    }
+
+    public int GetPidByName(String name)
+    {
+        return scheduler.getPidByName(name);
+    }
+
+    // Adds process to map when new process is created.
+    public void addProcessToMap(PCB pcb)
+    {
+        processMap.put(pcb.getPid(), pcb);
+    }
+
+    // Removes process from map if it gets deleted.
+    public void removeProcessFromMap(int pid)
+    {
+        processMap.remove(pid);
+    }
+
+    // Gets a process using a pid number.
+    public PCB getProcessByPid(int pid)
+    {
+        return processMap.get(pid);
+    }
+
+    // Sends a message to a process.
+    public void sendMessage(KernelMessage km)
+    {
+        // Makes a deep copy of the message.
+        KernelMessage copyMessage = new KernelMessage(km);
+
+        // Gets the target process by searching for its Pid.
+        PCB targetProcess = getProcessByPid(km.getTargetPid());
+
+        // Makes sure target exists.
+        if (targetProcess != null)
+        {
+            targetProcess.enqueueMessage(copyMessage);
+            // When the target is found, puts it back into rotation.
+            scheduler.removeFromWaiting(targetProcess.getPid());
+        }
+        // Will put the message in a queue for when the targetProcess has not been created yet.
+        else
+        {
+            messageQueue.put(copyMessage.getTargetPid(), copyMessage);
+        }
+    }
+
+    // Makes a process wait until a message is sent to it.
+    public KernelMessage waitForMessage()
+    {
+        PCB currentPCB = scheduler.getCurrentProcess();
+        if (currentPCB == null)
+            return null;
+
+        // In case there is a message queued when the process has not been created yet.
+        if (!messageQueue.isEmpty())
+        {
+            if (messageQueue.containsKey(currentPCB.getPid()))
+            {
+                // Returns the message held by the kernel once it is created and ready to receive.
+                return messageQueue.remove(currentPCB.getPid());
+            }
+        }
+
+        KernelMessage message = currentPCB.dequeueMessage();
+        if (message != null)
+        {
+            return message;
+        }
+        else
+        {
+            // Adds process to the waiting queue and stops it.
+            scheduler.addToWaiting();
+
+            // Waits for a message to be received.
+            synchronized (currentPCB)
+            {
+                while ((message = currentPCB.dequeueMessage()) == null);
+
+            }
+            return message;
+        }
+    }
+
 }

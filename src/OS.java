@@ -17,8 +17,9 @@ public class OS
         kernel = new Kernel();
 
         // Initialize the first process and IdleProcess.
-        createProcess(init);
         createProcess(new PCB(new IdleProcess(), 0));
+
+        createProcess(init);
     }
 
     // Initializes a new UserlandProcess for the scheduler to be aware of.
@@ -28,11 +29,14 @@ public class OS
         functionParameters.add(up);
         currentCall = CallType.CreateProcess;
 
+        // Gets the current process that needs to be stopped in case kernel gets ahead.
+        PCB currentProcess = kernel.getScheduler().currentProcess;
+
         // Signal to kernel to switch.
         kernel.start();
 
         // Stops current process and waits in the case of the first initialization.
-        stopAndWait();
+        stopAndWait(currentProcess);
 
         return (int) returnValue;
     }
@@ -43,41 +47,46 @@ public class OS
         functionParameters = new ArrayList<>();
         currentCall = CallType.SwitchProcess;
 
+        // Gets the current process that needs to be stopped in case kernel gets ahead.
+        PCB currentProcess = kernel.getScheduler().currentProcess;
+
         // Signal to kernel to switch.
         kernel.start();
 
         // Stops current process, doesn't wait as processes are already initialized.
-        stopAndWait();
+        stopAndWait(currentProcess);
     }
 
     // Helper method to stop current process and wait in the case of initialization.
-    private static void stopAndWait()
+    private static void stopAndWait(PCB processToStop)
     {
         // Checks for a currently running process and stops it.
-        if (kernel.getScheduler().currentProcess != null)
+        if (processToStop != null)
         {
-            kernel.getScheduler().currentProcess.stop();
+            processToStop.stop();
 
             // Increments the counter.
-            kernel.getScheduler().currentProcess.incrementTimeoutCounter();
+            processToStop.incrementTimeoutCounter();
 
             // If current process reached maximum timeouts of 5, it gets demoted.
-            if (kernel.getScheduler().currentProcess.getTimeoutCounter() == 5)
+            if (processToStop.getTimeoutCounter() == 5)
             {
-                int priority = kernel.getScheduler().currentProcess.getPriority();
+                int priority = processToStop.getPriority();
                 // Demotes process next time it gets put back into list as long as it is not already a background process.
-                if (priority < 2) {
+                if (priority < 2)
+                {
+                    /*
                     // Print statements to show which process level is getting demoted
                     if (priority == 0)
                         System.out.println("Demoting realtime to interactive");
                     else if (priority == 1)
                         System.out.println("Demoting interactive to background");
-
-                    kernel.getScheduler().currentProcess.setPriority(priority + 1);
+                    */
+                    processToStop.setPriority(priority + 1);
                 }
 
                 // Sets counter back to 0
-                kernel.getScheduler().currentProcess.setTimeoutCounter(0);
+                processToStop.setTimeoutCounter(0);
             }
         }
 
@@ -140,5 +149,27 @@ public class OS
     public static void seek(int index, int count)
     {
         kernel.seek(index, count);
+    }
+
+    public static int GetPid()
+    {
+        return kernel.GetPid();
+    }
+
+    public static int GetPidByName(String name)
+    {
+        return kernel.GetPidByName(name);
+    }
+
+    // Sends a message to a process through the kernel.
+    public static void sendMessage(KernelMessage km)
+    {
+        kernel.sendMessage(km);
+    }
+
+    // Makes a process wait until a message is sent to it through the kernel.
+    public static KernelMessage waitForMessage()
+    {
+        return kernel.waitForMessage();
     }
 }
