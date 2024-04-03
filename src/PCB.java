@@ -17,6 +17,10 @@ public class PCB
     private String processName;
     // This will hold any messages a process is trying to send to it.
     private LinkedList<KernelMessage> messageQueue;
+    // Page table for mapping virtual pages to physical pages.
+    private final int[] pageTable = new int[100];
+    // List to track memory allocations (start address, size).
+    private LinkedList<int[]> memoryAllocations = new LinkedList<>();
 
     // Creates thread, sets pid.
     public PCB(UserlandProcess up)
@@ -30,6 +34,8 @@ public class PCB
         // Gets process name.
         processName = up.getClass().getSimpleName();
         messageQueue = new LinkedList<>();
+        // Initializes all mappings to -1.
+        Arrays.fill(pageTable, -1);
     }
 
     // Second constructor to let priority be set by user.
@@ -137,5 +143,25 @@ public class PCB
     public KernelMessage peekMessage()
     {
         return this.messageQueue.peek();
+    }
+
+    public int[] getPageTable()
+    {
+        return pageTable;
+    }
+
+    public void updatePageTable(int virtualPage, int physicalPage)
+    {
+        pageTable[virtualPage] = physicalPage;
+    }
+
+    public void addMemoryAllocation(int startAddress, int size)
+    {
+        memoryAllocations.add(new int[]{startAddress, size});
+    }
+
+    public LinkedList<int[]> getMemoryAllocations()
+    {
+        return memoryAllocations;
     }
 }

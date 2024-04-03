@@ -13,6 +13,8 @@ public class Kernel implements Runnable, Device
     private final HashMap<Integer, PCB> processMap;
     // This queue will hold on to messages if the receiving process has not yet been created.
     private final HashMap<Integer, KernelMessage> messageQueue;
+    // Memory divided into 1024 1KB pages.
+    private static final boolean[] memoryPages = new boolean[1024];
 
     // Kernel constructor.
     public Kernel()
@@ -341,4 +343,61 @@ public class Kernel implements Runnable, Device
         }
     }
 
+    public int AllocateMemory(int size)
+    {
+        // Size must be a multiple of 1024
+        if (size % 1024 != 0)
+            return -1;
+
+        int numPages = size / 1024;
+        for (int i = 0; i <= memoryPages.length - numPages; i++)
+        {
+            // Checks for a contiguous block of free pages.
+            boolean suitable = true;
+            for (int j = 0; j < numPages; j++)
+            {
+                if (memoryPages[i + j])
+                {
+                    suitable = false;
+                    // When this block is not suitable, move to the next.
+                    break;
+                }
+            }
+
+            // If a suitable block is found, mark it as used and return the start address.
+            if (suitable)
+            {
+                for (int j = 0; j < numPages; j++)
+                {
+                    // Marks the page as used.
+                    memoryPages[i + j] = true;
+                }
+                // Returns the virtual start address.
+                return i * 1024;
+            }
+        }
+        // If no suitable block found.
+        return -1;
+    }
+
+    public boolean FreeMemory(int pointer, int size)
+    {
+        // Pointer and size must align with page boundaries.
+        if (pointer % 1024 != 0 || size % 1024 != 0)
+            return false;
+
+        int startPage = pointer / 1024;
+        int numPages = size / 1024;
+
+        // Verifies the request doesn't exceed memory bounds.
+        if (startPage + numPages > memoryPages.length) return false;
+
+        // Marks the specified pages as free.
+        for (int i = startPage; i < startPage + numPages; i++)
+        {
+            memoryPages[i] = false;
+        }
+
+        return true;
+    }
 }

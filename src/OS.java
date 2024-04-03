@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Random;
 
 public class OS
 {
@@ -55,6 +56,8 @@ public class OS
 
         // Stops current process, doesn't wait as processes are already initialized.
         stopAndWait(currentProcess);
+        // Clears the TLB when process is switched.
+        UserlandProcess.clearTLB();
     }
 
     // Helper method to stop current process and wait in the case of initialization.
@@ -173,5 +176,33 @@ public class OS
     public static KernelMessage waitForMessage()
     {
         return kernel.waitForMessage();
+    }
+
+    public static void GetMapping(int virtualPageNumber)
+    {
+        // Retrieve the current process's PCB from the kernel
+        PCB pcb = kernel.getScheduler().getCurrentProcess();
+
+        // Check if a mapping exists; if not, create one. This example uses random mapping for simplicity.
+        if(pcb.getPageTable()[virtualPageNumber] == -1)
+        {
+            int physicalPage = new Random().nextInt(1024); // Simulate physical page allocation
+            pcb.updatePageTable(virtualPageNumber, physicalPage);
+
+            // Simplify TLB update logic to directly call a static method in UserlandProcess for this example
+            UserlandProcess.updateTLB(virtualPageNumber, physicalPage);
+        }
+    }
+
+    // Calls Kernel AllocateMemory.
+    public static int AllocateMemory(int size)
+    {
+        return kernel.AllocateMemory(size);
+    }
+
+   // Calls Kernel FreeMemory.
+    public static boolean FreeMemory(int pointer, int size)
+    {
+        return kernel.FreeMemory(pointer, size);
     }
 }

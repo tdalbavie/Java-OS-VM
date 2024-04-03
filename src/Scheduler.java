@@ -98,8 +98,13 @@ public class Scheduler
                     // Moves the process to the end of the list if it is not done.
                     if (currentProcess != null && !currentProcess.isDone() && !goingToSleep && !goingToWait)
                     {
+                        // Checks if currentProcess is done, skips rescheduling, and ensures memory is cleared.
+                        if (currentProcess.isDone())
+                        {
+                            freeProcessMemory(currentProcess);
+                        }
                         // Puts current process to the back of the list it came from.
-                        if (currentProcess.getPriority() == 0)
+                        else if (currentProcess.getPriority() == 0)
                         {
                             realTimeProcesses.addLast(currentProcess);
                         }
@@ -138,8 +143,13 @@ public class Scheduler
                     // Moves the process to the end of the list if it is not done.
                     if (currentProcess != null && !currentProcess.isDone() && !goingToSleep && !goingToWait)
                     {
+                        // Checks if currentProcess is done, skips rescheduling, and ensures memory is cleared.
+                        if (currentProcess.isDone())
+                        {
+                            freeProcessMemory(currentProcess);
+                        }
                         // Puts current process to the back of the list it came from.
-                        if (currentProcess.getPriority() == 0)
+                        else if (currentProcess.getPriority() == 0)
                         {
                             realTimeProcesses.addLast(currentProcess);
                         }
@@ -177,8 +187,13 @@ public class Scheduler
                     // Moves the process to the end of the list if it is not done.
                     if (currentProcess != null && !currentProcess.isDone() && !goingToSleep && !goingToWait)
                     {
+                        // Checks if currentProcess is done, skips rescheduling, and ensures memory is cleared.
+                        if (currentProcess.isDone())
+                        {
+                            freeProcessMemory(currentProcess);
+                        }
                         // Puts current process to the back of the list it came from.
-                        if (currentProcess.getPriority() == 0)
+                        else if (currentProcess.getPriority() == 0)
                         {
                             realTimeProcesses.addLast(currentProcess);
                         }
@@ -364,4 +379,20 @@ public class Scheduler
         currentProcess.getProcess().requestStop();
         currentProcess.getProcess().cooperate();
     }
+
+    // Method to ensure memory is cleared after process ends.
+    private void freeProcessMemory(PCB process)
+    {
+        // Iterates through the process's memory allocations and free each one.
+        for (int[] allocation : process.getMemoryAllocations())
+        {
+            int startAddress = allocation[0];
+            int size = allocation[1];
+
+            OS.FreeMemory(startAddress, size);
+        }
+        // Clears the list of allocations after freeing them.
+        process.getMemoryAllocations().clear();
+    }
+
 }
