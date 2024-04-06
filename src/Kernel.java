@@ -13,8 +13,10 @@ public class Kernel implements Runnable, Device
     private final HashMap<Integer, PCB> processMap;
     // This queue will hold on to messages if the receiving process has not yet been created.
     private final HashMap<Integer, KernelMessage> messageQueue;
+    private static final int PAGE_SIZE = 1024;
     // Memory divided into 1024 1KB pages.
-    private static final boolean[] memoryPages = new boolean[1024];
+    private static final boolean[] memoryPages = new boolean[PAGE_SIZE];
+
 
     // Kernel constructor.
     public Kernel()
@@ -343,13 +345,14 @@ public class Kernel implements Runnable, Device
         }
     }
 
+    // The old method for memory allocation used by paging.
     public int AllocateMemory(int size)
     {
         // Size must be a multiple of 1024
-        if (size % 1024 != 0)
+        if (size % PAGE_SIZE != 0)
             return -1;
 
-        int numPages = size / 1024;
+        int numPages = size / PAGE_SIZE;
         for (int i = 0; i <= memoryPages.length - numPages; i++)
         {
             // Checks for a contiguous block of free pages.
@@ -373,21 +376,69 @@ public class Kernel implements Runnable, Device
                     memoryPages[i + j] = true;
                 }
                 // Returns the virtual start address.
-                return i * 1024;
+                return i * PAGE_SIZE;
             }
         }
         // If no suitable block found.
         return -1;
     }
 
+    public int AllocateMemory(PCB pcb, int size)
+    {
+        // Checks if size is a multiple of PAGE_SIZE.
+        if (size % PAGE_SIZE != 0)
+        {
+            return -1;
+        }
+
+        int numPages = size / PAGE_SIZE;
+        int startIndex = -1;
+
+        // Finds a contiguous block of unallocated virtual pages.
+        for (int i = 0; i <= pcb.getPageTable().length - numPages; i++)
+        {
+            boolean blockFound = true;
+            for (int j = 0; j < numPages; j++)
+            {
+                if (pcb.getPageTable()[i + j] != null)
+                {
+                    blockFound = false;
+                    break;
+                }
+            }
+
+            if (blockFound)
+            {
+                startIndex = i;
+                break;
+            }
+        }
+
+        // If no suitable block of virtual pages was found.
+        if (startIndex == -1)
+        {
+            return -1;
+        }
+
+        // Allocates virtual pages.
+        for (int i = startIndex; i < startIndex + numPages; i++)
+        {
+            pcb.getPageTable()[i] = new VirtualToPhysicalMapping();
+        }
+
+        // Returns the virtual address (start index of the allocated block).
+        return startIndex * PAGE_SIZE;
+    }
+
+    // The old method for freeing memory used by paging.
     public boolean FreeMemory(int pointer, int size)
     {
         // Pointer and size must align with page boundaries.
-        if (pointer % 1024 != 0 || size % 1024 != 0)
+        if (pointer % PAGE_SIZE != 0 || size % PAGE_SIZE != 0)
             return false;
 
-        int startPage = pointer / 1024;
-        int numPages = size / 1024;
+        int startPage = pointer / PAGE_SIZE;
+        int numPages = size / PAGE_SIZE;
 
         // Verifies the request doesn't exceed memory bounds.
         if (startPage + numPages > memoryPages.length) return false;
@@ -399,5 +450,39 @@ public class Kernel implements Runnable, Device
         }
 
         return true;
+    }
+
+    public boolean FreeMemory(PCB pcb, int virtualStartAddress, int size)
+    {
+        // Ensures the request is aligned with page boundaries and size is valid.
+        if (virtualStartAddress % PAGE_SIZE != 0 || size % PAGE_SIZE != 0)
+        {
+            return false;
+        }
+
+        int startPage = virtualStartAddress / PAGE_SIZE;
+        int numPages = size / PAGE_SIZE;
+
+        // Iterates over the specified range in the page table.
+        for (int i = startPage; i < startPage + numPages; i++)
+        {
+            // Checks if mapping exists and if physical page is actually allocated.
+            VirtualToPhysicalMapping mapping = pcb.getPageTable()[i];
+            if (mapping != null && mapping.physicalPageNumber != -1)
+            {
+                // If physical memory is used, mark the physical page as free.
+                memoryPages[mapping.physicalPageNumber] = false;
+                // Sets the page table entry to null, freeing the virtual mapping.
+                pcb.getPageTable()[i] = null;
+            }
+        }
+
+        return true;
+    }
+
+
+    public static boolean[] getMemoryPages()
+    {
+        return memoryPages;
     }
 }

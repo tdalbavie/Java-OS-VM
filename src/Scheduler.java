@@ -1,8 +1,5 @@
 import java.time.Clock;
-import java.util.LinkedList;
-import java.util.Random;
-import java.util.Timer;
-import java.util.TimerTask;
+import java.util.*;
 
 public class Scheduler
 {
@@ -395,4 +392,35 @@ public class Scheduler
         process.getMemoryAllocations().clear();
     }
 
+    // Gets a random process for eviction, does not remove idle process.
+    public PCB getRandomProcess()
+    {
+        // Used to pick a random process to evict.
+        Random rand = new Random();
+        // Creates a list of all processes.
+        ArrayList<PCB> allProcesses = new ArrayList<>();
+        allProcesses.addAll(realTimeProcesses);
+        allProcesses.addAll(interactiveProcesses);
+        allProcesses.addAll(backgroundProcesses);
+
+
+        ArrayList<PCB> eligibleProcesses = new ArrayList<>();
+        // Looks through all processes and removes IdleProcess from eligible processes to be evicted.
+        for (PCB process : allProcesses)
+        {
+            if (!process.getProcess().getClass().equals(IdleProcess.class))
+            {
+                eligibleProcesses.add(process);
+            }
+        }
+
+        if (eligibleProcesses.isEmpty())
+        {
+            // If no eligible process are found (should only happen if IdleProcess is the only process running).
+            return null;
+        }
+
+        // Returns a random non-idle process.
+        return eligibleProcesses.get(rand.nextInt(eligibleProcesses.size()));
+    }
 }

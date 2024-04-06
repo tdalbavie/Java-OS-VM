@@ -3,13 +3,13 @@ public class MemoryExtension extends UserlandProcess
     @Override
     public void main()
     {
-        // Attempt to allocate more memory than a single page
-        int startAddress = OS.AllocateMemory(2048); // Allocate 2 pages
+        // Attempts to allocate more memory than a single page.
+        int startAddress = OS.AllocateMemory(2048);
 
         if (startAddress != -1)
         {
             System.out.println("MemoryExtensionTest: Success");
-            OS.FreeMemory(startAddress, 2048); // Cleanup
+            OS.FreeMemory(startAddress, 2048);
         }
         else
         {

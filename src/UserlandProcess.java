@@ -11,8 +11,12 @@ public abstract class UserlandProcess implements Runnable
     private Boolean quantumExpired;
     // Simulated TLB: [Virtual Page][Physical Page].
     private static final int[][] TLB = new int[2][2];
+    // Variable used for page size.
+    private static final int PAGE_SIZE = 1024;
     // Holds 1MB physical memory.
-    private static final byte[] physicalMemory = new byte[1024 * 1024];
+    private static final byte[] physicalMemory = new byte[PAGE_SIZE * PAGE_SIZE];
+    // Holds the PCB of the current process.
+    private PCB pcb;
 
 
     // Initializes thread, semaphore, and quantum.
@@ -105,11 +109,11 @@ public abstract class UserlandProcess implements Runnable
 
     public byte ReadMemory(int address)
     {
-        int virtualPage = address / 1024;
-        int pageOffset = address % 1024;
+        int virtualPage = address / PAGE_SIZE;
+        int pageOffset = address % PAGE_SIZE;
         int physicalPage = -1;
 
-        // Check TLB for mapping
+        // Checks TLB for mapping.
         for (int i = 0; i < TLB.length; i++)
         {
             if (TLB[i][0] == virtualPage)
@@ -135,18 +139,18 @@ public abstract class UserlandProcess implements Runnable
             }
         }
 
-        int physicalAddress = physicalPage * 1024 + pageOffset;
+        int physicalAddress = physicalPage * PAGE_SIZE + pageOffset;
         // Returns value at physical address.
         return physicalMemory[physicalAddress];
     }
 
     public void WriteMemory(int address, byte value)
     {
-        int virtualPage = address / 1024;
-        int pageOffset = address % 1024;
+        int virtualPage = address / PAGE_SIZE;
+        int pageOffset = address % PAGE_SIZE;
         int physicalPage = -1;
 
-        // Check TLB for mapping
+        // Checks TLB for mapping.
         for (int i = 0; i < TLB.length; i++)
         {
             if (TLB[i][0] == virtualPage)
@@ -172,15 +176,15 @@ public abstract class UserlandProcess implements Runnable
             }
         }
 
-        int physicalAddress = physicalPage * 1024 + pageOffset;
+        int physicalAddress = physicalPage * PAGE_SIZE + pageOffset;
         // Writes value to physical address.
         physicalMemory[physicalAddress] = value;
     }
 
+    // Updates the TLB.
     public static void updateTLB(int virtualPage, int physicalPage)
     {
-        // Simplified TLB update mechanism. In real systems, this might involve replacement policies.
-        TLB[0][0] = virtualPage; // Overwrite the first entry as a simple approach
+        TLB[0][0] = virtualPage;
         TLB[0][1] = physicalPage;
     }
 
@@ -189,8 +193,37 @@ public abstract class UserlandProcess implements Runnable
     {
         for (int i = 0; i < TLB.length; i++)
         {
-            TLB[i][0] = -1; // Invalidate the entry
-            TLB[i][1] = -1; // Invalidate the entry
+            TLB[i][0] = -1;
+            TLB[i][1] = -1;
         }
+    }
+
+    public static void writePhysicalMemory(int physicalPageNumber, byte[] data)
+    {
+        int start = physicalPageNumber * PAGE_SIZE;
+        System.arraycopy(data, 0, physicalMemory, start, data.length);
+    }
+
+    public static byte[] readPhysicalMemory(int physicalPageNumber)
+    {
+        int start = physicalPageNumber * PAGE_SIZE;
+        byte[] data = new byte[PAGE_SIZE];
+        System.arraycopy(UserlandProcess.physicalMemory, start, data, 0, PAGE_SIZE);
+        return data;
+    }
+
+    public void setPCB(PCB pcb)
+    {
+        this.pcb = pcb;
+    }
+
+    public PCB getPCB()
+    {
+        return pcb;
+    }
+
+    public static byte[] getPhysicalMemory()
+    {
+        return physicalMemory;
     }
 }

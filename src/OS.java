@@ -1,4 +1,5 @@
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 
 public class OS
@@ -11,6 +12,12 @@ public class OS
     private static ArrayList<Object> functionParameters;
     // Holds the return value from the function that was run.
     private static Object returnValue;
+    // Tracks the swap file device ID.
+    private static int swapFileDeviceId = -1;
+    // Tracks the next page index in the swap file.
+    private static int nextPageIndex = 0;
+    // Variable used for page size.
+    private static final int PAGE_SIZE = 1024;
 
     // Starts up the OS.
     public static void Startup(PCB init)
@@ -19,6 +26,13 @@ public class OS
 
         // Initialize the first process and IdleProcess.
         createProcess(new PCB(new IdleProcess(), 0));
+
+        // Opens the swap file and stores its device ID for later use.
+        swapFileDeviceId = kernel.open("file swapfile.txt");
+        if (swapFileDeviceId == -1)
+        {
+            throw new RuntimeException("Failed to open swap file.");
+        }
 
         createProcess(init);
     }
@@ -180,17 +194,113 @@ public class OS
 
     public static void GetMapping(int virtualPageNumber)
     {
-        // Retrieve the current process's PCB from the kernel
         PCB pcb = kernel.getScheduler().getCurrentProcess();
+        VirtualToPhysicalMapping mapping = pcb.getPageTable()[virtualPageNumber];
 
-        // Check if a mapping exists; if not, create one. This example uses random mapping for simplicity.
-        if(pcb.getPageTable()[virtualPageNumber] == -1)
+        if (mapping.physicalPageNumber == -1)
         {
-            int physicalPage = new Random().nextInt(1024); // Simulate physical page allocation
-            pcb.updatePageTable(virtualPageNumber, physicalPage);
+            int newPhysicalPage = findFreePhysicalPage();
+            if (newPhysicalPage == -1)
+            {
+                newPhysicalPage = evictPageAndSwap();
+            }
 
-            // Simplify TLB update logic to directly call a static method in UserlandProcess for this example
-            UserlandProcess.updateTLB(virtualPageNumber, physicalPage);
+            if (mapping.diskPageNumber != -1)
+            {
+                readPageFromSwapFile(virtualPageNumber, mapping.diskPageNumber, newPhysicalPage);
+            }
+            else
+            {
+                // Initializes physical memory with zeros.
+                byte[] emptyData = new byte[PAGE_SIZE];
+                Arrays.fill(emptyData, (byte) 0);
+                UserlandProcess.writePhysicalMemory(newPhysicalPage, emptyData);
+            }
+
+            mapping.physicalPageNumber = newPhysicalPage;
+            UserlandProcess.updateTLB(virtualPageNumber, newPhysicalPage);
+        }
+        else
+        {
+            UserlandProcess.updateTLB(virtualPageNumber, mapping.physicalPageNumber);
+        }
+    }
+
+    private static int evictPageAndSwap()
+    {
+        PCB victimProcess = kernel.getScheduler().getRandomProcess();
+        while (victimProcess != null)
+        {
+            for (VirtualToPhysicalMapping victimMapping : victimProcess.getPageTable())
+            {
+                if (victimMapping != null && victimMapping.physicalPageNumber != -1)
+                {
+                    // Looks for a page to evict.
+                    if (victimMapping.diskPageNumber == -1)
+                    {
+                        victimMapping.diskPageNumber = nextPageIndex++;
+                    }
+                    // Writes victim page to disk.
+                    byte[] pageData = UserlandProcess.readPhysicalMemory(victimMapping.physicalPageNumber);
+                    writePageToSwapFile(victimMapping.diskPageNumber, pageData);
+
+                    // Updates mapping for the evicted page.
+                    int freedPhysicalPage = victimMapping.physicalPageNumber;
+                    victimMapping.physicalPageNumber = -1;
+                    return freedPhysicalPage;
+                }
+            }
+            // Tries another process if no physical page was found in the current one.
+            victimProcess = kernel.getScheduler().getRandomProcess();
+        }
+        // Should not happen if physical memory management is correct.
+        return -1;
+    }
+
+    public static void writePageToSwapFile(int diskPageNumber, byte[] data)
+    {
+        int offset = diskPageNumber * PAGE_SIZE;
+        OS.seek(swapFileDeviceId, offset);
+        OS.write(swapFileDeviceId, data);
+    }
+
+
+    private static int findFreePhysicalPage()
+    {
+        for (int i = 0; i < Kernel.getMemoryPages().length; i++)
+        {
+            // Checks if a free page is found.
+            if (!Kernel.getMemoryPages()[i])
+            {
+                // Marks page as used.
+                Kernel.getMemoryPages()[i] = true;
+                return i;
+            }
+        }
+        // When no pages are free.
+        return -1;
+    }
+
+    // Reads a page from the swap file into a physical page in memory.
+    public static void readPageFromSwapFile(int virtualPageNumber, int diskPageNumber, int physicalPageNumber) {
+        byte[] data;
+        // Calculates offset in the swap file.
+        int offset = diskPageNumber * PAGE_SIZE;
+
+        // Performs seek and read operations on the swap file.
+        OS.seek(swapFileDeviceId, offset);
+        // Returns the byte array read from the swap file.
+        data = OS.read(swapFileDeviceId, PAGE_SIZE);
+
+        // Writes the data to physical memory.
+        UserlandProcess.writePhysicalMemory(physicalPageNumber, data);
+
+        // Updates the PCB's page table with the new mapping.
+        PCB currentPCB = kernel.getScheduler().getCurrentProcess();
+        if (currentPCB != null)
+        {
+            // Uses the virtualPageNumber directly as it's known in the context of handling the page fault.
+            currentPCB.updatePageTable(virtualPageNumber, physicalPageNumber, -1);
         }
     }
 
@@ -200,9 +310,19 @@ public class OS
         return kernel.AllocateMemory(size);
     }
 
+    public static int AllocateMemory(PCB pcb, int size)
+    {
+        return kernel.AllocateMemory(pcb, size);
+    }
+
    // Calls Kernel FreeMemory.
     public static boolean FreeMemory(int pointer, int size)
     {
         return kernel.FreeMemory(pointer, size);
+    }
+
+    public static boolean FreeMemory(PCB pcb, int virtualStartAddress, int size)
+    {
+        return kernel.FreeMemory(pcb, virtualStartAddress, size);
     }
 }

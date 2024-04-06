@@ -18,9 +18,11 @@ public class PCB
     // This will hold any messages a process is trying to send to it.
     private LinkedList<KernelMessage> messageQueue;
     // Page table for mapping virtual pages to physical pages.
-    private final int[] pageTable = new int[100];
+    // private final int[] pageTable = new int[100]; // This was used for old paging system.
+    // Page table for mapping virtual pages to physical pages.
+    private final VirtualToPhysicalMapping[] pageTable = new VirtualToPhysicalMapping[100];
     // List to track memory allocations (start address, size).
-    private LinkedList<int[]> memoryAllocations = new LinkedList<>();
+    private final LinkedList<int[]> memoryAllocations = new LinkedList<>();
 
     // Creates thread, sets pid.
     public PCB(UserlandProcess up)
@@ -34,8 +36,6 @@ public class PCB
         // Gets process name.
         processName = up.getClass().getSimpleName();
         messageQueue = new LinkedList<>();
-        // Initializes all mappings to -1.
-        Arrays.fill(pageTable, -1);
     }
 
     // Second constructor to let priority be set by user.
@@ -145,19 +145,26 @@ public class PCB
         return this.messageQueue.peek();
     }
 
-    public int[] getPageTable()
+    public VirtualToPhysicalMapping[] getPageTable()
     {
         return pageTable;
     }
 
+    /* This was the old method used for paging.
     public void updatePageTable(int virtualPage, int physicalPage)
     {
         pageTable[virtualPage] = physicalPage;
     }
+    */
 
-    public void addMemoryAllocation(int startAddress, int size)
+    // Updates the page table with given virtual, physical, and disk page.
+    public void updatePageTable(int virtualPage, int physicalPage, int diskPage)
     {
-        memoryAllocations.add(new int[]{startAddress, size});
+        if (virtualPage >= 0 && virtualPage < pageTable.length)
+        {
+            pageTable[virtualPage].physicalPageNumber = physicalPage;
+            pageTable[virtualPage].diskPageNumber = diskPage;
+        }
     }
 
     public LinkedList<int[]> getMemoryAllocations()
